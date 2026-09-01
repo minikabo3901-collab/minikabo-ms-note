@@ -1,0 +1,32 @@
+node_modules
+dist
+dev-dist
+coverage
+playwright-report
+test-results
+screenshots
+*.local
+.DS_Store
+*.tsbuildinfo
+
+# --- 公開してはいけない個人データ・秘密情報 ---
+# 暗号化バックアップ（実際の健康記録が入るため絶対にコミットしない）
+*.msbackup
+# IndexedDB から書き出したデータ
+*.export.json
+export-*.json
+
+# 環境変数
+.env
+.env.*
+!.env.example
+
+# Playwright の実行結果・一時ファイル
+playwright/.cache
+blob-report
+
+# OS / エディター
+Thumbs.db
+.idea
+.vscode/*
+!.vscode/extensions.json

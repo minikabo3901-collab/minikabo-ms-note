@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0e7490" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b3a47" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MSノート" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex, nofollow" />
+    <!-- %BASE_URL% は Vite が base に置き換える。サブディレクトリ配信でも、
+         末尾スラッシュの無い URL で開かれた場合でも正しく解決される。 -->
+    <link rel="icon" type="image/png" sizes="32x32" href="%BASE_URL%icons/favicon-32.png" />
+    <link rel="apple-touch-icon" href="%BASE_URL%icons/apple-touch-icon.png" />
+    <title>みにかぼ MSノート</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>このアプリの利用には JavaScript が必要です。</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

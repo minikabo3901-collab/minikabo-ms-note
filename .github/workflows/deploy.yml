@@ -1,0 +1,99 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Pages のデプロイは同時に 1 つだけ。実行中のデプロイは中断しない。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: 検証とビルド
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v7
+
+      - name: Node.js をセットアップ
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: 依存関係をインストール
+        run: npm ci
+
+      - name: 型チェック
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: 単体テスト
+        run: npm test
+
+      - name: base パスを決定
+        # GitHub Pages はリポジトリ名のサブディレクトリで配信される。
+        # GITHUB_REPOSITORY は "owner/repo" 形式で、どのイベントでも必ず設定される。
+        # リポジトリ名が <owner>.github.io の場合はユーザーサイトなので base は "/" にする。
+        run: |
+          REPO="${GITHUB_REPOSITORY#*/}"
+          OWNER="${GITHUB_REPOSITORY%%/*}"
+          if [ "$REPO" = "${OWNER,,}.github.io" ] || [ "$REPO" = "$OWNER.github.io" ]; then
+            BASE="/"
+          else
+            BASE="/$REPO/"
+          fi
+          echo "BASE_PATH=$BASE" >> "$GITHUB_ENV"
+          echo "E2E_BASE_URL=http://localhost:4173$BASE" >> "$GITHUB_ENV"
+          echo "base = $BASE"
+
+      - name: 本番ビルド
+        run: npm run build
+
+      - name: 出力パスが base と一致するか確認
+        run: |
+          echo "BASE_PATH=$BASE_PATH"
+          grep -q "${BASE_PATH}assets/" dist/index.html \
+            || { echo "index.html の資産パスが base と一致しません"; exit 1; }
+          grep -q "\"start_url\":\"./\"" dist/manifest.webmanifest \
+            || { echo "manifest の start_url が相対指定ではありません"; exit 1; }
+          grep -q "\"scope\":\"./\"" dist/manifest.webmanifest \
+            || { echo "manifest の scope が相対指定ではありません"; exit 1; }
+          test -f dist/sw.js || { echo "Service Worker が生成されていません"; exit 1; }
+          test -f dist/icons/icon-512.png || { echo "アイコンが出力されていません"; exit 1; }
+
+      - name: Playwright のブラウザを取得
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E テスト（オフライン起動・バックアップ復元を含む）
+        run: npm run test:e2e
+
+      - name: Pages の設定を読み込む
+        uses: actions/configure-pages@v6
+
+      - name: 成果物をアップロード
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    name: GitHub Pages へデプロイ
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: デプロイ
+        id: deployment
+        uses: actions/deploy-pages@v5
