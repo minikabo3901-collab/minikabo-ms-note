@@ -87,8 +87,20 @@ npm run build
 npm run preview
 ```
 
-`npm run preview` は `http://localhost:4173` で `dist/` を配信します。
+`npm run preview` は `http://localhost:4173/minikabo-ms-note/` で `dist/` を配信します。
 Service Worker とオフライン動作を確認する場合はこちらを使ってください。
+
+> **配信先のパス（base）について**
+> GitHub Pages はリポジトリ名のサブディレクトリで配信されるため、`vite.config.ts` の
+> `BASE_PATH`（既定 `/minikabo-ms-note/`）を base に設定しています。
+> これに合わせて JS・CSS・画像・アイコン・manifest・Service Worker のパスがすべて揃います。
+> 別のリポジトリ名にする場合は環境変数で上書きできます。
+>
+> ```bash
+> BASE_PATH=/別のリポジトリ名/ npm run build
+> ```
+>
+> GitHub Actions ではリポジトリ名から自動で決まるため、設定は不要です。
 
 アイコンを作り直す場合（外部素材なしでローカル生成します）:
 
@@ -167,7 +179,53 @@ npx playwright install chromium
 
 ---
 
-## 6. iPhone のホーム画面への追加
+## 6. GitHub Pages への公開
+
+公開URL: **https://minikabo3901-collab.github.io/minikabo-ms-note/**
+
+`main` ブランチへ push すると `.github/workflows/deploy.yml` が動き、
+型チェック → Lint → 単体テスト → 本番ビルド → base 一致の確認 → E2E テスト（オフライン起動と
+バックアップ復元を含む）→ Pages へのデプロイ、が自動で実行されます。
+どれかが失敗した場合はデプロイされません。
+
+### 更新の手順
+
+```bash
+git add -A
+git commit -m "変更内容"
+git push
+```
+
+push から 3〜5 分ほどで公開サイトへ反映されます。進行状況は GitHub の **Actions** タブで確認できます。
+
+### 初めて公開する場合（別アカウントで作り直すとき）
+
+1. GitHub で新しいリポジトリを作成します（例: `minikabo-ms-note`）。
+2. リポジトリ名がそのまま URL のサブディレクトリになります。
+   別名にする場合は `vite.config.ts` の `BASE_PATH` の既定値も合わせてください
+   （GitHub Actions 経由なら自動で決まるため変更は不要です）。
+3. このプロジェクトを `main` ブランチとして push します。
+4. GitHub の画面で次を設定します。
+
+   ```text
+   Settings → Pages → Build and deployment → Source → GitHub Actions
+   ```
+
+5. 設定後、`main` への push で自動的にビルドと公開が行われます。
+
+### 公開されるもの・されないもの
+
+| 公開される | 公開されない |
+| --- | --- |
+| アプリのソースコード | あなたが入力した健康記録 |
+| ビルドされた HTML / CSS / JS / アイコン | `.msbackup` バックアップファイル |
+| README などのドキュメント | IndexedDB の中身 |
+
+入力したデータは GitHub へ送信されず、**iPhone の中の IndexedDB にだけ**保存されます。
+
+---
+
+## 7. iPhone のホーム画面への追加
 
 1. **Safari** でアプリの URL を開きます。
 2. 画面下の共有ボタン（□に↑）をタップします。
@@ -179,7 +237,7 @@ npx playwright install chromium
 
 ---
 
-## 7. データの保存について
+## 8. データの保存について
 
 - 記録はすべて**この端末の IndexedDB だけ**に保存されます。
 - サーバー送信・クラウド同期・アカウント登録はありません。
@@ -201,7 +259,7 @@ npx playwright install chromium
 
 ---
 
-## 8. バックアップ方法
+## 9. バックアップ方法
 
 1. 右上の歯車から「設定」を開きます。
 2. 「データ管理」の「**バックアップ作成**」をタップします。
@@ -232,7 +290,7 @@ npx playwright install chromium
   ヘッダには形式情報と作成日時しか含まれません。
 - **パスワードはアプリに保存されません。忘れた場合、そのバックアップを復元する方法はありません。**
 
-## 9. 復元方法
+## 10. 復元方法
 
 1. 「設定」→「データ管理」→「バックアップから復元」。
 2. `.msbackup` ファイルを選びます。
@@ -248,7 +306,7 @@ npx playwright install chromium
 
 ---
 
-## 10. 通知・カレンダーについて
+## 11. 通知・カレンダーについて
 
 - **Push 通知・ローカル通知・バックグラウンド通知は実装していません。**
 - **Apple カレンダーなど、スマートフォン標準カレンダーとの連携はありません。**
@@ -259,7 +317,7 @@ npx playwright install chromium
 
 ---
 
-## 11. データベース構造
+## 12. データベース構造
 
 IndexedDB のデータベース名は `minikabo-ms-note`（`APP_ID`）です。定義は `src/db/db.ts`、
 型と検証ルールは `src/db/types.ts` にあります。
@@ -297,7 +355,7 @@ IndexedDB のデータベース名は `minikabo-ms-note`（`APP_ID`）です。�
 
 ---
 
-## 12. 将来スキーマを変更する方法
+## 13. 将来スキーマを変更する方法
 
 `src/db/db.ts` の `MsNoteDb` に、**既存の `version()` ブロックを書き換えずに**新しい
 バージョンを追加します。
@@ -337,7 +395,7 @@ this.version(3)
 
 ---
 
-## 13. 実装上の判断（仕様に明記が無かった部分）
+## 14. 実装上の判断（仕様に明記が無かった部分）
 
 | 判断 | 理由 |
 | --- | --- |
@@ -355,7 +413,7 @@ this.version(3)
 
 ---
 
-## 14. ディレクトリ構成
+## 15. ディレクトリ構成
 
 ```
 src/
@@ -390,7 +448,7 @@ public/icons/                ローカル生成した PWA アイコン
 
 ---
 
-## 15. 画面構成
+## 16. 画面構成
 
 下部ナビゲーションは 4 項目のみです。設定は**右上の歯車**から開きます。
 

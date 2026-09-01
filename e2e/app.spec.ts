@@ -143,6 +143,9 @@ test.describe('みにかぼ MSノート', () => {
 
     // 予定ルール（14日ごと）を追加
     await expect(page.getByRole('heading', { name: '投薬予定' })).toBeVisible();
+    // 一覧（Dexie の live query）が解決しきるまで待つ。
+    // 読み込み中にクリックすると再描画で要素がずれ、別の要素がクリックを受け取ってしまう。
+    await expect(page.getByText('投薬予定はまだ登録されていません。')).toBeVisible();
     await page.getByRole('button', { name: '予定ルールを追加' }).click();
     await page.getByRole('button', { name: 'N日ごと' }).click();
     await page.getByLabel('何日ごと').selectOption('14');
@@ -279,6 +282,56 @@ test.describe('みにかぼ MSノート', () => {
       expect(box!.height).toBeGreaterThanOrEqual(44);
       expect(box!.width).toBeGreaterThanOrEqual(44);
     }
+  });
+
+  test('入力欄の文字サイズが 16px 以上で、iOS の自動ズームが起きない', async ({ page }) => {
+    await page.goto(HOME);
+    await acceptDisclaimer(page);
+
+    // 入力欄のある画面（症状の記録・測定結果）を確認する
+    for (const path of ['#/record/symptom/new', '#/measurements/new', '#/settings']) {
+      await page.goto(`${BASE}/${path}`);
+      const sizes = await page.evaluate(() => {
+        // iOS が自動ズームするのは「文字入力できる欄」だけ。
+        // range / checkbox / radio / file / button 類はキーボードが出ないため対象外。
+        const TEXT_ENTRY = new Set([
+          'text',
+          'number',
+          'email',
+          'tel',
+          'url',
+          'password',
+          'search',
+          'date',
+          'time',
+          'datetime-local',
+          'month',
+          'week',
+        ]);
+        return [...document.querySelectorAll('input, select, textarea')]
+          .filter((el) => {
+            if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return true;
+            return TEXT_ENTRY.has((el as HTMLInputElement).type);
+          })
+          .map((el) => ({
+            tag: el.tagName.toLowerCase(),
+            type: (el as HTMLInputElement).type ?? '',
+            fontSize: Number.parseFloat(getComputedStyle(el).fontSize),
+          }));
+      });
+      for (const s of sizes) {
+        // iOS Safari はフォーカス時、16px 未満の入力欄でページを自動拡大する
+        expect(
+          s.fontSize,
+          `${path} の ${s.tag}[type=${s.type}] が ${s.fontSize}px（16px 未満だと iOS が自動ズームする）`,
+        ).toBeGreaterThanOrEqual(16);
+      }
+    }
+
+    // ズーム自体は禁止していない（アクセシビリティのため maximum-scale は 1 にしない）
+    const viewport = await page.getAttribute('meta[name="viewport"]', 'content');
+    expect(viewport).toContain('viewport-fit=cover');
+    expect(viewport).not.toMatch(/user-scalable\s*=\s*no/);
   });
 
   test('キーボード操作でナビゲーションを辿れる', async ({ page }) => {
