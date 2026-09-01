@@ -144,9 +144,18 @@ test.describe('みにかぼ MSノート', () => {
     // 予定ルール（14日ごと）を追加
     await expect(page.getByRole('heading', { name: '投薬予定' })).toBeVisible();
     // 一覧（Dexie の live query）が解決しきるまで待つ。
-    // 読み込み中にクリックすると再描画で要素がずれ、別の要素がクリックを受け取ってしまう。
     await expect(page.getByText('投薬予定はまだ登録されていません。')).toBeVisible();
-    await page.getByRole('button', { name: '予定ルールを追加' }).click();
+
+    // CI の遅い環境では複数の live query が順に解決してレイアウトがずれるため、
+    // クリック位置が下部固定ナビや直前の要素に重なることがある。
+    // 「画面中央へスクロール → クリック → シートが開いたことを確認」までを 1 組にして再試行する。
+    const addRuleButton = page.getByRole('button', { name: '予定ルールを追加' });
+    await expect(async () => {
+      await addRuleButton.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+      await addRuleButton.click({ timeout: 5_000 });
+      await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 });
+    }).toPass({ timeout: 30_000 });
+
     await page.getByRole('button', { name: 'N日ごと' }).click();
     await page.getByLabel('何日ごと').selectOption('14');
     await page.getByRole('dialog').getByRole('button', { name: '保存する' }).click();

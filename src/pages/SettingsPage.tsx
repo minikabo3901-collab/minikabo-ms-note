@@ -16,6 +16,7 @@ import {
   type BackupSummary,
 } from '@/features/backup/backup';
 import {
+  isIosSafari,
   isStandalone,
   isStoragePersisted,
   requestPersistentStorage,
@@ -76,11 +77,17 @@ export function SettingsPage(): ReactNode {
 
       <DataManagementCard stats={stats} onChanged={() => void reload()} />
 
+      {/*
+        iOS には一般的な PWA インストールボタン（beforeinstallprompt）が無いため、
+        手動の追加手順を案内する。ホーム画面から起動している間は目立たせない。
+      */}
       <Card title="ホーム画面への追加">
         <p className="small mb0">
           {isStandalone()
             ? 'ホーム画面から起動しています。オフラインでもこのまま使えます。'
-            : 'Safari で開き、画面下の共有ボタン（□に↑）→「ホーム画面に追加」を選ぶと、アプリとして全画面で使えます。初回読み込み後はオフラインでも起動します。'}
+            : isIosSafari()
+              ? 'Safari で開き、画面下の共有ボタン（□に↑）→「ホーム画面に追加」を選ぶと、アプリとして全画面で使えます。初回読み込み後はオフラインでも起動します。'
+              : 'iPhone の Safari でこのページを開くと、ホーム画面に追加してアプリとして使えます。'}
         </p>
       </Card>
 
