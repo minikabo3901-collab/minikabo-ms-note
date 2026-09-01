@@ -146,13 +146,26 @@ test.describe('みにかぼ MSノート', () => {
     // 一覧（Dexie の live query）が解決しきるまで待つ。
     await expect(page.getByText('投薬予定はまだ登録されていません。')).toBeVisible();
 
-    // CI の遅い環境では複数の live query が順に解決してレイアウトがずれるため、
-    // クリック位置が下部固定ナビや直前の要素に重なることがある。
-    // 「画面中央へスクロール → クリック → シートが開いたことを確認」までを 1 組にして再試行する。
+    // CI の遅い環境では live query の解決順でレイアウトが動き、Playwright が
+    // クリック直前に再判定した位置が下部固定ナビや直前の要素に重なることがある。
+    // 「中央へスクロール → 中心が本当にボタンに当たるか検証 → クリック → シート表示確認」
+    // までを 1 組にして再試行する。被覆の検証は自前の hit-test で担保する。
     const addRuleButton = page.getByRole('button', { name: '予定ルールを追加' });
     await expect(async () => {
-      await addRuleButton.evaluate((el) => el.scrollIntoView({ block: 'center' }));
-      await addRuleButton.click({ timeout: 5_000 });
+      const hit = await addRuleButton.evaluate((el) => {
+        el.scrollIntoView({ block: 'center' });
+        const r = el.getBoundingClientRect();
+        const target = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        return {
+          covered: !(target === el || el.contains(target)),
+          coveredBy: target ? `${target.tagName}.${target.className}` : 'null',
+        };
+      });
+      // ボタンが他要素に覆われていれば、それ自体が不具合なので失敗させる
+      expect(hit.covered, `ボタンが ${hit.coveredBy} に覆われています`).toBe(false);
+
+      // 覆われていないことを確認済みなので、Playwright 側の再判定は行わせない
+      await addRuleButton.click({ force: true, timeout: 5_000 });
       await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 });
     }).toPass({ timeout: 30_000 });
 
