@@ -17,8 +17,9 @@ export default defineConfig({
     ...devices['iPhone 13'],
     // Playwright の WebKit は環境依存が大きいため、CI では Chromium のモバイルエミュレーションを使う
     defaultBrowserType: 'chromium',
-    trace: 'off',
-    screenshot: 'off',
+    // 失敗時のみ証拠を残す（CI で再現しない問題を調べるため）。ローカルでは無効。
+    trace: process.env.CI ? 'retain-on-failure' : 'off',
+    screenshot: process.env.CI ? 'only-on-failure' : 'off',
   },
   projects: [
     {

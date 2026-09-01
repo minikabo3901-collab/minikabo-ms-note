@@ -83,6 +83,15 @@ jobs:
       - name: E2E テスト（オフライン起動・バックアップ復元を含む）
         run: npm run test:e2e
 
+      - name: E2E 失敗時の証拠を保存
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-failure
+          path: test-results
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Pages の設定を読み込む
         uses: actions/configure-pages@v6
 
