@@ -1,4 +1,4 @@
-import { expect, test, type ConsoleMessage, type Page, type Request } from '@playwright/test';
+import { expect, test, type ConsoleMessage, type Locator, type Page, type Request } from '@playwright/test';
 
 /**
  * iPhone 相当のビューポートで主要フローを検証する E2E テスト。
@@ -69,6 +69,35 @@ async function acceptDisclaimer(page: Page): Promise<void> {
   await expect(page.getByRole('navigation', { name: 'メインナビゲーション' })).toBeVisible();
 }
 
+/**
+ * 要素の中心が本当にその要素に当たることを自前で確認してからクリックする。
+ *
+ * Playwright はクリック直前に位置を再判定するが、モバイルエミュレーション下では
+ * 固定配置要素の判定が実際の描画とずれることがある（CI で再現）。
+ * ここで hit-test を行うため、他要素に本当に覆われている場合は失敗して検出できる。
+ */
+async function clickWhenNotCovered(target: Locator, label: string): Promise<void> {
+  await expect(async () => {
+    const hit = await target.evaluate((el) => {
+      el.scrollIntoView({ block: 'center' });
+      const r = el.getBoundingClientRect();
+      const at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return {
+        covered: !(at === el || el.contains(at) || at?.contains(el)),
+        coveredBy: at ? `${at.tagName}.${String(at.className)}` : 'null',
+      };
+    });
+    expect(hit.covered, `${label} が ${hit.coveredBy} に覆われています`).toBe(false);
+    await target.click({ force: true, timeout: 5_000 });
+  }).toPass({ timeout: 20_000 });
+}
+
+/** 下部ナビのリンクを押す */
+async function clickNav(page: Page, name: string): Promise<void> {
+  const link = page.getByRole('navigation', { name: 'メインナビゲーション' }).getByRole('link', { name });
+  await clickWhenNotCovered(link, `ナビの「${name}」`);
+}
+
 test.describe('みにかぼ MSノート', () => {
   test('初回起動から主要画面まで移動でき、外部通信も権限要求も発生しない', async ({ page }) => {
     const errors = watchConsole(page);
@@ -132,7 +161,7 @@ test.describe('みにかぼ MSノート', () => {
     await acceptDisclaimer(page);
 
     // 記録 → 投薬管理 → 薬を追加
-    await page.getByRole('navigation', { name: 'メインナビゲーション' }).getByRole('link', { name: '記録' }).click();
+    await clickNav(page, '記録');
     await page.getByRole('link', { name: /投薬管理/ }).click();
     await page.getByRole('link', { name: '薬を追加' }).click();
 
@@ -175,7 +204,7 @@ test.describe('みにかぼ MSノート', () => {
     await expect(page.getByText(/14日ごと/)).toBeVisible();
 
     // ホームに戻ると「本日が投薬予定日です」
-    await page.getByRole('navigation', { name: 'メインナビゲーション' }).getByRole('link', { name: 'ホーム' }).click();
+    await clickNav(page, 'ホーム');
     await expect(page.getByText('本日が投薬予定日です')).toBeVisible();
 
     // 投薬を記録
@@ -212,7 +241,7 @@ test.describe('みにかぼ MSノート', () => {
     await expect(page.getByText('経過記録（1件）')).toBeVisible();
 
     // ホームの「継続中の症状」に出る
-    await page.getByRole('navigation', { name: 'メインナビゲーション' }).getByRole('link', { name: 'ホーム' }).click();
+    await clickNav(page, 'ホーム');
     await expect(page.getByText('継続中の症状')).toBeVisible();
     expect(errors).toEqual([]);
   });
@@ -243,13 +272,13 @@ test.describe('みにかぼ MSノート', () => {
     await expect(page.getByRole('heading', { name: '疲労', level: 1 })).toBeVisible();
 
     // オフラインのまま画面遷移できる
-    await page.getByRole('navigation', { name: 'メインナビゲーション' }).getByRole('link', { name: '経過' }).click();
+    await clickNav(page, '経過');
     await expect(page.getByRole('heading', { name: '経過', level: 1 })).toBeVisible();
     await expect(page.getByText(/タイムライン（\d+件）/)).toBeVisible();
 
     // オフラインで再読み込みしてもデータが残っている
     await page.reload();
-    await page.getByRole('navigation', { name: 'メインナビゲーション' }).getByRole('link', { name: 'ホーム' }).click();
+    await clickNav(page, 'ホーム');
     await expect(page.getByText('継続中の症状')).toBeVisible();
 
     // オンラインに戻してもデータは維持される
