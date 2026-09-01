@@ -72,6 +72,11 @@ jobs:
           test -f dist/sw.js || { echo "Service Worker が生成されていません"; exit 1; }
           test -f dist/icons/icon-512.png || { echo "アイコンが出力されていません"; exit 1; }
 
+      - name: 日本語フォントを導入
+        # ubuntu ランナーには CJK フォントが無く、日本語が代替フォントで描画されるため
+        # 文字幅・行数が実機と変わり、レイアウト依存の E2E が不安定になる。
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+
       - name: Playwright のブラウザを取得
         run: npx playwright install --with-deps chromium
 
